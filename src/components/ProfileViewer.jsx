@@ -306,6 +306,55 @@ export default function ProfileViewer() {
           <div className="p-8 space-y-8">
             <div>
               <div className="flex items-center gap-2 mb-6">
+                <BiLeaf className="w-5 h-5 text-teal-700" />
+                <h3 className="text-xl font-semibold text-teal-700">
+                  Holistic Health Assessment
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {(() => {
+                  const cards = [];
+
+                  Object.entries(holistic).forEach(([k, v]) => {
+                    if (
+                      v !== undefined &&
+                      v !== null &&
+                      v !== "" &&
+                      k !== "overall_wellness_index" &&
+                      k !== "wellness_index"
+                    ) {
+                      let unit = "";
+                      if (k.includes("index") || k.includes("wellness"))
+                        unit = "/100";
+
+                      cards.push(
+                        mkCard(
+                          k
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (l) => l.toUpperCase()),
+                          v,
+                          unit,
+                          <BiLeaf className="w-4 h-4" />
+                        )
+                      );
+                    }
+                  });
+
+                  const validCards = cards.filter(Boolean);
+
+                  return validCards.length ? (
+                    validCards
+                  ) : (
+                    <div className="col-span-full bg-white rounded-xl p-6 text-center text-sm font-medium border border-blue-100 shadow-md text-slate-600">
+                      No holistic assessment data available
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-6">
                 <HiOutlineHeart className="w-5 h-5 text-teal-700" />
                 <h3 className="text-xl font-semibold text-teal-700">
                   Vital Signs Summary
@@ -476,55 +525,6 @@ export default function ProfileViewer() {
                   ) : (
                     <div className="col-span-full bg-white rounded-xl p-6 text-center text-sm font-medium border border-blue-100 shadow-md text-slate-600">
                       No mental health or sleep data recorded
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 mb-6">
-                <BiLeaf className="w-5 h-5 text-teal-700" />
-                <h3 className="text-xl font-semibold text-teal-700">
-                  Holistic Health Assessment
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {(() => {
-                  const cards = [];
-
-                  Object.entries(holistic).forEach(([k, v]) => {
-                    if (
-                      v !== undefined &&
-                      v !== null &&
-                      v !== "" &&
-                      k !== "overall_wellness_index" &&
-                      k !== "wellness_index"
-                    ) {
-                      let unit = "";
-                      if (k.includes("index") || k.includes("wellness"))
-                        unit = "/100";
-
-                      cards.push(
-                        mkCard(
-                          k
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (l) => l.toUpperCase()),
-                          v,
-                          unit,
-                          <BiLeaf className="w-4 h-4" />
-                        )
-                      );
-                    }
-                  });
-
-                  const validCards = cards.filter(Boolean);
-
-                  return validCards.length ? (
-                    validCards
-                  ) : (
-                    <div className="col-span-full bg-white rounded-xl p-6 text-center text-sm font-medium border border-blue-100 shadow-md text-slate-600">
-                      No holistic assessment data available
                     </div>
                   );
                 })()}

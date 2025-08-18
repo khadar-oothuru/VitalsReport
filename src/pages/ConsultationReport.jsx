@@ -444,6 +444,73 @@ const ConsultationReport = () => {
 
               <div>
                 <div className="flex items-center gap-2 mb-6">
+                  <BiLeaf className="w-5 h-5 text-teal-700" />
+                  <h3 className="text-xl font-semibold text-teal-700">
+                    Holistic Health Assessment
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {[
+                    mkCard(
+                      "Ayurvedic Dosha Type",
+                      holisticFactors.ayurvedic_dosha_type
+                    ),
+                    mkCard(
+                      "Overall Wellness Index",
+                      holisticFactors.overall_wellness_index,
+                      "/100"
+                    ),
+                    mkCard(
+                      "Spiritual Wellness",
+                      holisticFactors.spiritual_wellness
+                    ),
+                  ].filter(Boolean)}
+                  {!holisticFactors ||
+                  Object.keys(holisticFactors).length === 0 ? (
+                    <div className="col-span-full bg-white rounded-xl p-6 text-center text-sm font-medium border border-blue-100 shadow-md text-slate-600">
+                      No holistic assessment data available
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-6">
+                  <HiOutlineFlag className="w-5 h-5 text-teal-700" />
+                  <h3 className="text-xl font-semibold text-teal-700">
+                    Care Planning & Goals
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-white rounded-xl p-6 shadow-md border border-blue-100">
+                    <div className="text-sm font-semibold mb-3 text-slate-600">
+                      Treatment Goals
+                    </div>
+                    <div className="text-sm leading-relaxed text-slate-700">
+                      {Array.isArray(carePlanning?.treatment_goals) &&
+                      carePlanning.treatment_goals.filter(
+                        (g) => g && String(g).trim()
+                      ).length
+                        ? carePlanning.treatment_goals
+                            .filter((g) => g && String(g).trim())
+                            .join(", ")
+                        : "No treatment goals specified for this patient."}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-6 shadow-md border border-blue-100">
+                    <div className="text-sm font-semibold mb-3 text-slate-600">
+                      Next Steps
+                    </div>
+                    <div className="text-sm leading-relaxed text-slate-700">
+                      {carePlanning?.next_steps ||
+                        "No next steps specified for this patient."}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-6">
                   <BiBody className="w-5 h-5 text-teal-700" />
                   <h3 className="text-xl font-semibold text-teal-700">
                     Physical Measurements & Vitals
@@ -604,73 +671,6 @@ const ConsultationReport = () => {
                       No lifestyle or medical history data available
                     </div>
                   ) : null}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-6">
-                  <BiLeaf className="w-5 h-5 text-teal-700" />
-                  <h3 className="text-xl font-semibold text-teal-700">
-                    Holistic Health Assessment
-                  </h3>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {[
-                    mkCard(
-                      "Ayurvedic Dosha Type",
-                      holisticFactors.ayurvedic_dosha_type
-                    ),
-                    mkCard(
-                      "Overall Wellness Index",
-                      holisticFactors.overall_wellness_index,
-                      "/100"
-                    ),
-                    mkCard(
-                      "Spiritual Wellness",
-                      holisticFactors.spiritual_wellness
-                    ),
-                  ].filter(Boolean)}
-                  {!holisticFactors ||
-                  Object.keys(holisticFactors).length === 0 ? (
-                    <div className="col-span-full bg-white rounded-xl p-6 text-center text-sm font-medium border border-blue-100 shadow-md text-slate-600">
-                      No holistic assessment data available
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-6">
-                  <HiOutlineFlag className="w-5 h-5 text-teal-700" />
-                  <h3 className="text-xl font-semibold text-teal-700">
-                    Care Planning & Goals
-                  </h3>
-                </div>
-                <div className="space-y-4">
-                  <div className="bg-white rounded-xl p-6 shadow-md border border-blue-100">
-                    <div className="text-sm font-semibold mb-3 text-slate-600">
-                      Treatment Goals
-                    </div>
-                    <div className="text-sm leading-relaxed text-slate-700">
-                      {Array.isArray(carePlanning?.treatment_goals) &&
-                      carePlanning.treatment_goals.filter(
-                        (g) => g && String(g).trim()
-                      ).length
-                        ? carePlanning.treatment_goals
-                            .filter((g) => g && String(g).trim())
-                            .join(", ")
-                        : "No treatment goals specified for this patient."}
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-xl p-6 shadow-md border border-blue-100">
-                    <div className="text-sm font-semibold mb-3 text-slate-600">
-                      Next Steps
-                    </div>
-                    <div className="text-sm leading-relaxed text-slate-700">
-                      {carePlanning?.next_steps ||
-                        "No next steps specified for this patient."}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
