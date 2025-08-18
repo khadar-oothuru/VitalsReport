@@ -252,10 +252,10 @@ export default function ProfileViewer() {
                 <HiOutlineUserCircle className="w-5 h-5 text-white" />
                 <div>
                   <div className="text-xs font-semibold text-green-800">
-                    Patient ID
+                    Patient Name
                   </div>
                   <div className="text-sm font-bold text-green-900">
-                    {selectedUserId}
+                    {userInfo?.name || selectedUserId}
                   </div>
                 </div>
               </div>
