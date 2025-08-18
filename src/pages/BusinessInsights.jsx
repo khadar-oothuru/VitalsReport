@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import CountUp from "../components/CountUp.jsx";
 import { Chart, registerables } from "chart.js";
 import { loadCSVWithFallback } from "../lib/csv";
 import {
@@ -500,11 +501,12 @@ const BusinessInsights = () => {
                 <FiUsers className="text-white" />
               </div>
               <div className="text-4xl font-bold text-teal-700 mb-2">
-                {metrics.totalUsers}
+                <CountUp value={metrics.totalUsers} duration={2400} />
               </div>
               <div className="text-slate-600 font-medium mb-2">Total Users</div>
               <div className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
-                {metrics.newRegistrations} this month
+                <CountUp value={metrics.newRegistrations} duration={1800} />{" "}
+                this month
               </div>
             </div>
 
@@ -513,13 +515,17 @@ const BusinessInsights = () => {
                 <FiCalendar className="text-white" />
               </div>
               <div className="text-4xl font-bold text-teal-700 mb-2">
-                {metrics.totalConsultations}
+                <CountUp value={metrics.totalConsultations} duration={2400} />
               </div>
               <div className="text-slate-600 font-medium mb-2">
                 Total Consultations
               </div>
               <div className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
-                {metrics.completedConsultations} completed
+                <CountUp
+                  value={metrics.completedConsultations}
+                  duration={1800}
+                />{" "}
+                completed
               </div>
             </div>
 
@@ -528,7 +534,7 @@ const BusinessInsights = () => {
                 <FiHeart className="text-white" />
               </div>
               <div className="text-4xl font-bold text-teal-700 mb-2">
-                {metrics.activeProviders}
+                <CountUp value={metrics.activeProviders} duration={2400} />
               </div>
               <div className="text-slate-600 font-medium mb-2">
                 Active Providers
@@ -543,13 +549,21 @@ const BusinessInsights = () => {
                 <FiBarChart2 className="text-white" />
               </div>
               <div className="text-4xl font-bold text-teal-700 mb-2">
-                {metrics.completionRate}%
+                <CountUp
+                  value={metrics.completionRate}
+                  suffix="%"
+                  duration={2400}
+                />
               </div>
               <div className="text-slate-600 font-medium mb-2">
                 Completion Rate
               </div>
               <div className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
-                {metrics.cancelledConsultations} cancelled
+                <CountUp
+                  value={metrics.cancelledConsultations}
+                  duration={1800}
+                />{" "}
+                cancelled
               </div>
             </div>
           </div>
@@ -569,7 +583,10 @@ const BusinessInsights = () => {
                     Monthly Active Users
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.monthlyActiveUsers}
+                    <CountUp
+                      value={metrics.monthlyActiveUsers}
+                      duration={2000}
+                    />
                   </div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-xl p-6 hover:shadow-md transition-shadow">
@@ -577,7 +594,7 @@ const BusinessInsights = () => {
                     New User Registrations
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.newRegistrations}
+                    <CountUp value={metrics.newRegistrations} duration={2000} />
                   </div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-xl p-6 hover:shadow-md transition-shadow">
@@ -585,13 +602,19 @@ const BusinessInsights = () => {
                     User Retention Rate
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.totalUsers > 0
-                      ? Math.round(
-                          (metrics.monthlyActiveUsers / metrics.totalUsers) *
-                            100
-                        )
-                      : 0}
-                    %
+                    <CountUp
+                      value={
+                        metrics.totalUsers > 0
+                          ? Math.round(
+                              (metrics.monthlyActiveUsers /
+                                metrics.totalUsers) *
+                                100
+                            )
+                          : 0
+                      }
+                      suffix="%"
+                      duration={2000}
+                    />
                   </div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-xl p-6 hover:shadow-md transition-shadow">
@@ -599,11 +622,15 @@ const BusinessInsights = () => {
                     Avg. Appointments per User
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.totalUsers > 0
-                      ? (
-                          metrics.totalConsultations / metrics.totalUsers
-                        ).toFixed(1)
-                      : 0}
+                    <CountUp
+                      value={
+                        metrics.totalUsers > 0
+                          ? metrics.totalConsultations / metrics.totalUsers
+                          : 0
+                      }
+                      decimals={1}
+                      duration={2000}
+                    />
                   </div>
                 </div>
               </div>
@@ -643,7 +670,10 @@ const BusinessInsights = () => {
                     Completed Consultations
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.completedConsultations}
+                    <CountUp
+                      value={metrics.completedConsultations}
+                      duration={2000}
+                    />
                   </div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-xl p-6 hover:shadow-md transition-shadow">
@@ -651,7 +681,10 @@ const BusinessInsights = () => {
                     Cancelled/No-shows
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.cancelledConsultations}
+                    <CountUp
+                      value={metrics.cancelledConsultations}
+                      duration={2000}
+                    />
                   </div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-xl p-6 hover:shadow-md transition-shadow">
@@ -659,11 +692,15 @@ const BusinessInsights = () => {
                     Avg. Consultations per User
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.totalUsers > 0
-                      ? (
-                          metrics.totalConsultations / metrics.totalUsers
-                        ).toFixed(1)
-                      : 0}
+                    <CountUp
+                      value={
+                        metrics.totalUsers > 0
+                          ? metrics.totalConsultations / metrics.totalUsers
+                          : 0
+                      }
+                      decimals={1}
+                      duration={2000}
+                    />
                   </div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 rounded-xl p-6 hover:shadow-md transition-shadow">
@@ -671,7 +708,11 @@ const BusinessInsights = () => {
                     Success Rate
                   </div>
                   <div className="text-2xl font-bold text-teal-700">
-                    {metrics.completionRate}%
+                    <CountUp
+                      value={metrics.completionRate}
+                      suffix="%"
+                      duration={2000}
+                    />
                   </div>
                 </div>
               </div>
@@ -714,11 +755,13 @@ const BusinessInsights = () => {
                   <div className="text-2xl font-bold text-teal-700">
                     {(() => {
                       const totalProviders = data.providers.length;
-                      return totalProviders > 0
-                        ? (metrics.totalConsultations / totalProviders).toFixed(
-                            1
-                          )
-                        : 0;
+                      const val =
+                        totalProviders > 0
+                          ? metrics.totalConsultations / totalProviders
+                          : 0;
+                      return (
+                        <CountUp value={val} decimals={1} duration={2000} />
+                      );
                     })()}
                   </div>
                 </div>
@@ -789,14 +832,14 @@ const BusinessInsights = () => {
                         data.appointments.map((a) => a.provider_id)
                       ).size;
                       const totalProviders = data.providers.length;
-
-                      return totalProviders > 0
-                        ? Math.round(
-                            (providersWithAppointments / totalProviders) * 100
-                          )
-                        : 0;
+                      const val =
+                        totalProviders > 0
+                          ? Math.round(
+                              (providersWithAppointments / totalProviders) * 100
+                            )
+                          : 0;
+                      return <CountUp value={val} suffix="%" duration={2000} />;
                     })()}
-                    %
                   </div>
                 </div>
               </div>
