@@ -1,0 +1,93 @@
+Vitals7 CSV Validation Report
+================================
+
+Table: AddProviderTable
+  Rows: 1000
+  Columns: 17
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: AppointmentTable
+  Rows: 1000
+  Columns: 18
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: CalendarEventTable
+  Rows: 1000
+  Columns: 13
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: MedicalRecordTable
+  Rows: 1000
+  Columns: 14
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: MessageTable
+  Rows: 1000
+  Columns: 11
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: NotificationTable
+  Rows: 1000
+  Columns: 12
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: ProviderTable
+  Rows: 1000
+  Columns: 14
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: UserDetailsTable
+  Rows: 1000
+  Columns: 12
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: UserDocumentTable
+  Rows: 1000
+  Columns: 13
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: UserTable
+  Rows: 1000
+  Columns: 9
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: VitalRecordTable
+  Rows: 1000
+  Columns: 12
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: VitalTable
+  Rows: 10
+  Columns: 9
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
+
+Table: VitalTriggerTable
+  Rows: 1000
+  Columns: 11
+  Missing PK cells: 0
+  Empty PK cells: 0
+  Duplicate PK rows: 0
