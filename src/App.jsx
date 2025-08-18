@@ -15,7 +15,7 @@ const App = () => {
       <Navbar />
       <main className="flex-1 pt-20">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Tables />} />
           <Route path="/tables" element={<Tables />} />
           <Route
             path="/comprehensive-medical-profile"
