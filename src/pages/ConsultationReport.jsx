@@ -345,7 +345,10 @@ const ConsultationReport = () => {
                           : "Unknown Provider";
                         const date = formatAppointmentDate(apt);
                         const statusBadge = apt.status
-                          ? ` (${apt.status})`
+                          ? ` (${
+                              getStatusConfig(normalizeStatusValue(apt.status))
+                                .label
+                            })`
                           : "";
 
                         return {
@@ -414,7 +417,9 @@ const ConsultationReport = () => {
                     <div className="text-xs font-semibold text-green-800">
                       Status
                     </div>
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold border bg-green-900 text-green-50 border-green-800">
+                    <div
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold border ${statusConfig.class}`}
+                    >
                       <statusConfig.icon className="w-3 h-3" />
                       {statusConfig.label}
                     </div>
