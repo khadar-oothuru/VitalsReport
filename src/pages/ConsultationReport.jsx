@@ -78,15 +78,20 @@ const ConsultationReport = () => {
     })();
   }, []);
 
+  // PREDEFINED USER: This consultation report is configured to show only Thomas Wilson (thomas.wilson7615@example.com)
+  // This is not changeable - the user selection is locked to this specific user only
   const usersForSelector = useMemo(() => {
     const users =
       (userMaster && userMaster.length ? userMaster : userTable) || [];
-    const sorted = [...users].sort((a, b) => {
-      const nameA = `${a.first_name || ""} ${a.last_name || ""}`.trim();
-      const nameB = `${b.first_name || ""} ${b.last_name || ""}`.trim();
-      return nameA.localeCompare(nameB);
-    });
-    return sorted;
+
+    // Filter to show only the predefined Thomas Wilson user
+    const thomasWilsonUser = users.find(
+      (user) =>
+        user.email === "thomas.wilson7615@example.com" ||
+        user.user_id === "7608f719-f6b3-4074-8db3-95abc689b587"
+    );
+
+    return thomasWilsonUser ? [thomasWilsonUser] : [];
   }, [userMaster, userTable]);
 
   useEffect(() => {
@@ -127,6 +132,17 @@ const ConsultationReport = () => {
           new Date(a.created_at || a.created)
       );
   }, [appointments, selectedUserId]);
+
+  // Auto-select the latest appointment when user is selected
+  useEffect(() => {
+    if (
+      selectedUserId &&
+      appointmentsForUser.length > 0 &&
+      !selectedAppointmentId
+    ) {
+      setSelectedAppointmentId(appointmentsForUser[0].id); // Select the latest appointment
+    }
+  }, [selectedUserId, appointmentsForUser, selectedAppointmentId]);
 
   const appointment = useMemo(
     () => appointments.find((x) => x.id === selectedAppointmentId) || null,
@@ -268,12 +284,11 @@ const ConsultationReport = () => {
               </label>
               <SmartDropdown
                 value={selectedUserId}
-                onChange={(value) => {
-                  setSelectedUserId(value);
-                  setSelectedAppointmentId("");
+                onChange={() => {
+                  // User selection is locked to Thomas Wilson - no changes allowed
+                  return;
                 }}
                 options={[
-                  { value: "", label: "Select a user..." },
                   ...usersForSelector.map((u) => {
                     const fullName = `${(u.first_name || "").trim()} ${(
                       u.last_name || ""
@@ -286,6 +301,7 @@ const ConsultationReport = () => {
                   }),
                 ]}
                 placeholder="Select a user..."
+                disabled={true}
               />
               {userInfo && (
                 <div className="mt-3 text-xs rounded-lg px-3 py-2 bg-green-100 text-green-700 font-medium">
@@ -304,6 +320,7 @@ const ConsultationReport = () => {
                 <HiOutlineCalendar className="w-4 h-4" />
                 Appointment
               </label>
+
               <SmartDropdown
                 value={selectedAppointmentId}
                 onChange={(value) => setSelectedAppointmentId(value)}
@@ -327,11 +344,13 @@ const ConsultationReport = () => {
                             }`.trim() || "Unknown Provider"
                           : "Unknown Provider";
                         const date = formatAppointmentDate(apt);
+                        const statusBadge = apt.status
+                          ? ` (${apt.status})`
+                          : "";
+
                         return {
                           value: apt.id,
-                          label: `${date} - ${provName} (${
-                            apt.status || "n/a"
-                          })`,
+                          label: `${date} - ${provName}${statusBadge}`,
                         };
                       })),
                 ]}
@@ -339,7 +358,15 @@ const ConsultationReport = () => {
               />
               {selectedAppointmentId && (
                 <div className="mt-3 text-xs rounded-lg px-3 py-2 bg-green-100 text-green-700 font-medium">
-                  Appointment ID: {selectedAppointmentId}
+                  <div className="flex items-center justify-between">
+                    <span>Appointment ID: {selectedAppointmentId}</span>
+                    {appointmentsForUser.length > 0 &&
+                      appointmentsForUser[0].id === selectedAppointmentId && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                          Latest
+                        </span>
+                      )}
+                  </div>
                 </div>
               )}
             </div>
