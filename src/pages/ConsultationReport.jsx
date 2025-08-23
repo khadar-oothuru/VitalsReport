@@ -78,20 +78,10 @@ const ConsultationReport = () => {
     })();
   }, []);
 
-  // PREDEFINED USER: This consultation report is configured to show only Thomas Wilson (thomas.wilson7615@example.com)
-  // This is not changeable - the user selection is locked to this specific user only
   const usersForSelector = useMemo(() => {
     const users =
       (userMaster && userMaster.length ? userMaster : userTable) || [];
-
-    // Filter to show only the predefined Thomas Wilson user
-    const thomasWilsonUser = users.find(
-      (user) =>
-        user.email === "thomas.wilson7615@example.com" ||
-        user.user_id === "7608f719-f6b3-4074-8db3-95abc689b587"
-    );
-
-    return thomasWilsonUser ? [thomasWilsonUser] : [];
+    return users;
   }, [userMaster, userTable]);
 
   useEffect(() => {
@@ -247,8 +237,8 @@ const ConsultationReport = () => {
     : "";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
-      <div className="max-w-7xl mx-auto px-6 py-10">
+    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 min-h-full">
+      <div className="py-6">
         <div className="bg-gradient-to-br from-white to-blue-50 border border-blue-100 rounded-2xl mb-8 overflow-hidden shadow-lg">
           <div className="bg-gradient-to-r from-teal-700 to-emerald-600 text-white px-8 py-6">
             <div className="flex items-center gap-3 mb-2">
@@ -284,11 +274,9 @@ const ConsultationReport = () => {
               </label>
               <SmartDropdown
                 value={selectedUserId}
-                onChange={() => {
-                  // User selection is locked to Thomas Wilson - no changes allowed
-                  return;
-                }}
+                onChange={(value) => setSelectedUserId(value)}
                 options={[
+                  { value: "", label: "Select a patient..." },
                   ...usersForSelector.map((u) => {
                     const fullName = `${(u.first_name || "").trim()} ${(
                       u.last_name || ""
@@ -300,8 +288,8 @@ const ConsultationReport = () => {
                     };
                   }),
                 ]}
-                placeholder="Select a user..."
-                disabled={true}
+                placeholder="Select a patient..."
+                disabled={false}
               />
               {userInfo && (
                 <div className="mt-3 text-xs rounded-lg px-3 py-2 bg-green-100 text-green-700 font-medium">

@@ -487,13 +487,13 @@ const BusinessInsights = () => {
   }, [data, brandColors]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 min-h-full">
       {data.loading ? (
-        <div className="max-w-7xl mx-auto px-6 py-20 text-center">
+        <div className="text-center py-20">
           <div className="text-xl text-teal-700">Loading data...</div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="py-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             <div className="bg-gradient-to-br from-white to-blue-50 border border-blue-100 rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">

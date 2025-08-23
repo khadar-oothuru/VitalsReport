@@ -220,7 +220,7 @@ const Tables = () => {
   const navItems = datasets.map((d) => ({ id: d.id, label: d.title }));
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className="py-6">
       <div className="bg-gradient-to-br from-white to-blue-50 border border-blue-100 rounded-2xl mb-8 overflow-hidden shadow-lg">
         <div className="bg-gradient-to-r from-teal-700 to-emerald-600 text-white px-8 py-6">
           <div className="flex items-center gap-3 mb-2">
