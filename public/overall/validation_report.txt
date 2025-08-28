@@ -52,7 +52,7 @@ Table: ProviderTable
 
 Table: UserDetailsTable
   Rows: 1000
-  Columns: 12
+  Columns: 14
   Missing PK cells: 0
   Empty PK cells: 0
   Duplicate PK rows: 0
