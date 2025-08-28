@@ -1,11 +1,11 @@
 code,name,description,category,unit,normal_range_min,normal_range_max,created_at,updated_at
-HR,Heart Rate,Beats per minute,Cardiovascular,bpm,60,100,2024-02-11T19:20:36.656459,2025-07-22T06:09:36.656535
-SBP,Systolic Blood Pressure,Systolic pressure,Cardiovascular,mmHg,90,140,2023-09-28T21:17:36.656565,2025-07-30T09:31:36.656581
-DBP,Diastolic Blood Pressure,Diastolic pressure,Cardiovascular,mmHg,60,90,2023-10-05T06:55:36.656600,2025-07-27T17:28:36.656614
-TEMP,Body Temperature,Core body temperature,General,°F,97.0,99.5,2024-09-09T13:05:36.656632,2025-07-27T22:08:36.656643
-RR,Respiratory Rate,Breaths per minute,Respiratory,bpm,12,20,2025-06-12T21:57:36.656814,2025-08-13T23:04:36.656838
-SPO2,Oxygen Saturation,Blood oxygen saturation,Respiratory,%,95,100,2025-03-03T03:15:36.656879,2025-08-15T05:32:36.656891
-BMI,Body Mass Index,Body mass index,Anthropometric,kg/m²,18.5,25,2023-12-09T19:12:36.656903,2025-07-18T13:23:36.656916
-WEIGHT,Weight,Body weight,Anthropometric,lbs,100,300,2024-07-13T06:39:36.656928,2025-08-05T12:38:36.656939
-HEIGHT,Height,Body height,Anthropometric,inches,58,78,2023-10-20T20:24:36.656950,2025-08-08T04:52:36.656961
-GLUCOSE,Blood Glucose,Blood sugar level,Laboratory,mg/dL,70,140,2024-03-16T17:22:36.656973,2025-08-10T14:37:36.656983
+HR,Heart Rate,Beats per minute,Cardiovascular,bpm,60,100,2024-07-26T07:58:10.036754,2025-08-25T01:57:10.036774
+SBP,Systolic Blood Pressure,Systolic pressure,Cardiovascular,mmHg,90,140,2023-11-19T19:22:10.036782,2025-08-11T04:03:10.036788
+DBP,Diastolic Blood Pressure,Diastolic pressure,Cardiovascular,mmHg,60,90,2025-06-04T17:13:10.036794,2025-08-19T13:45:10.036799
+TEMP,Body Temperature,Core body temperature,General,°F,97.0,99.5,2023-12-13T10:17:10.036804,2025-08-25T23:44:10.036809
+RR,Respiratory Rate,Breaths per minute,Respiratory,bpm,12,20,2024-09-18T13:34:10.036814,2025-07-31T08:40:10.036819
+SPO2,Oxygen Saturation,Blood oxygen saturation,Respiratory,%,95,100,2024-03-20T16:38:10.036824,2025-08-15T19:09:10.036828
+BMI,Body Mass Index,Body mass index,Anthropometric,kg/m²,18.5,25,2025-06-15T16:51:10.036833,2025-07-29T03:47:10.036837
+WEIGHT,Weight,Body weight,Anthropometric,lbs,100,300,2025-05-19T05:54:10.036844,2025-08-04T03:51:10.036852
+HEIGHT,Height,Body height,Anthropometric,inches,58,78,2024-11-20T16:14:10.036860,2025-08-15T14:48:10.036866
+GLUCOSE,Blood Glucose,Blood sugar level,Laboratory,mg/dL,70,140,2025-06-29T15:07:10.036874,2025-08-19T20:31:10.036880
