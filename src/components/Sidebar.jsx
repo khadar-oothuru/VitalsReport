@@ -7,6 +7,10 @@ import {
   FiDatabase,
   FiMenu,
   FiX,
+  FiCalendar,
+  FiUser,
+  FiHeart,
+  FiBarChart,
 } from "react-icons/fi";
 
 const Sidebar = () => {
@@ -37,6 +41,26 @@ const Sidebar = () => {
           to: "/consultation-report",
           label: "Consultation Report",
           icon: FiFileText,
+        },
+        {
+          to: "/provider-appointment-management",
+          label: "Appointment Management",
+          icon: FiCalendar,
+        },
+        {
+          to: "/provider-patient-profile",
+          label: "Patient Profile",
+          icon: FiUser,
+        },
+        {
+          to: "/provider-vital-monitoring",
+          label: "Vital Monitoring",
+          icon: FiHeart,
+        },
+        {
+          to: "/provider-patient-dashboard",
+          label: "Patient Dashboard",
+          icon: FiBarChart,
         },
         {
           to: "/business-insights",
@@ -89,7 +113,7 @@ const Sidebar = () => {
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-teal-700 text-white z-30 transition-transform duration-300 ease-in-out overflow-hidden border-t border-white border-b border-white ${
+        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-teal-700 text-white z-30 transition-transform duration-300 ease-in-out overflow-hidden border-t border-b border-white ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0 md:relative md:top-0 md:h-full md:z-auto md:overflow-hidden`}
       >
