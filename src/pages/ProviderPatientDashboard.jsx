@@ -96,21 +96,27 @@ const ProviderPatientDashboard = () => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return "normal";
 
-    switch (vitalCode.toLowerCase()) {
-      case "heart_rate":
-        if (numValue < 60 || numValue > 100) return "critical";
-        if (numValue < 70 || numValue > 90) return "warning";
-        return "normal";
-      case "systolic_bp":
-        if (numValue < 90 || numValue > 140) return "critical";
-        if (numValue < 100 || numValue > 130) return "warning";
-        return "normal";
-      case "temperature":
-        if (numValue < 97 || numValue > 99.5) return "critical";
-        return "normal";
-      default:
-        return "normal";
+    // Find the vital definition to get normal ranges
+    const vital = vitals.find((v) => v.code === vitalCode);
+    if (!vital) return "normal";
+
+    const minNormal = parseFloat(vital.normal_range_min);
+    const maxNormal = parseFloat(vital.normal_range_max);
+
+    if (isNaN(minNormal) || isNaN(maxNormal)) return "normal";
+
+    // Define warning ranges (10% outside normal range)
+    const warningBuffer = (maxNormal - minNormal) * 0.1;
+    const minWarning = minNormal - warningBuffer;
+    const maxWarning = maxNormal + warningBuffer;
+
+    if (numValue < minNormal || numValue > maxNormal) {
+      return "critical";
+    } else if (numValue < minWarning || numValue > maxWarning) {
+      return "warning";
     }
+
+    return "normal";
   };
 
   const formatDate = (dateString) => {
@@ -222,7 +228,12 @@ const ProviderPatientDashboard = () => {
                 new Date(parseInt(recentAppointments[0].start_time) * 1000)
               )
             : "No recent visits",
-        vitalStatus: latestVitals.length > 0 ? "Alert" : "Normal",
+        vitalStatus:
+          latestVitals.length > 0
+            ? latestVitals[0]
+              ? getAlertLevel(latestVitals[0].value, latestVitals[0].vital_code)
+              : "normal"
+            : "normal",
       };
     });
   }, [users, userDetails, medicalRecords, vitalRecords, appointments]);
@@ -331,7 +342,12 @@ const ProviderPatientDashboard = () => {
           patient_name: `${patient.first_name} ${patient.last_name}`,
           vital: latestVital ? latestVital.vital_code : "Unknown",
           value: latestVital ? latestVital.value : "N/A",
-          status: patient.status === "critical" ? "High" : "Elevated",
+          status:
+            patient.status === "critical"
+              ? "Critical"
+              : patient.status === "pending"
+              ? "Warning"
+              : "Normal",
           time: latestVital
             ? formatTimeAgo(latestVital.recorded_at)
             : "Unknown",
@@ -354,7 +370,7 @@ const ProviderPatientDashboard = () => {
         time: formatTimeAgo(
           new Date(parseInt(patient.recentAppointments[0].start_time) * 1000)
         ),
-        unread: Math.random() > 0.5,
+        unread: false, // Messages are considered read by default
       }));
   }, [processedPatients, providers]);
 

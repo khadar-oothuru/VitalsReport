@@ -78,37 +78,24 @@ const ProviderVitalMonitoring = () => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return "normal";
 
-    // Simple alert logic based on common vital ranges
-    switch (vital.name.toLowerCase()) {
-      case "heart rate":
-      case "pulse rate":
-        if (numValue < 60 || numValue > 100) return "critical";
-        if (numValue < 70 || numValue > 90) return "warning";
-        return "normal";
-      case "systolic blood pressure":
-      case "blood pressure systolic":
-        if (numValue < 90 || numValue > 140) return "critical";
-        if (numValue < 100 || numValue > 130) return "warning";
-        return "normal";
-      case "diastolic blood pressure":
-      case "blood pressure diastolic":
-        if (numValue < 60 || numValue > 90) return "critical";
-        if (numValue < 70 || numValue > 85) return "warning";
-        return "normal";
-      case "temperature":
-        if (numValue < 97 || numValue > 99.5) return "critical";
-        return "normal";
-      case "oxygen saturation":
-        if (numValue < 95) return "critical";
-        if (numValue < 97) return "warning";
-        return "normal";
-      case "respiratory rate":
-        if (numValue < 12 || numValue > 20) return "critical";
-        if (numValue < 14 || numValue > 18) return "warning";
-        return "normal";
-      default:
-        return "normal";
+    // Use actual normal ranges from VitalTable.csv
+    const minNormal = parseFloat(vital.normal_range_min);
+    const maxNormal = parseFloat(vital.normal_range_max);
+
+    if (isNaN(minNormal) || isNaN(maxNormal)) return "normal";
+
+    // Define warning ranges (10% outside normal range)
+    const warningBuffer = (maxNormal - minNormal) * 0.1;
+    const minWarning = minNormal - warningBuffer;
+    const maxWarning = maxNormal + warningBuffer;
+
+    if (numValue < minNormal || numValue > maxNormal) {
+      return "critical";
+    } else if (numValue < minWarning || numValue > maxWarning) {
+      return "warning";
     }
+
+    return "normal";
   };
 
   const getStatusFromAlertLevel = (alertLevel) => {
@@ -194,24 +181,22 @@ const ProviderVitalMonitoring = () => {
   // Get current vital averages
   const currentVitalAverages = useMemo(() => {
     const averages = {};
-    const vitalTypes = [
-      "heart_rate",
-      "systolic_bp",
-      "diastolic_bp",
-      "temperature",
-      "oxygen_saturation",
+
+    // Get unique vital codes from actual data
+    const vitalCodes = [
+      ...new Set(processedVitalRecords.map((r) => r.vital_code)),
     ];
 
-    vitalTypes.forEach((type) => {
+    vitalCodes.forEach((code) => {
       const records = processedVitalRecords.filter(
-        (r) => r.vital_code === type
+        (r) => r.vital_code === code
       );
       if (records.length > 0) {
         const values = records
           .map((r) => parseFloat(r.value))
           .filter((v) => !isNaN(v));
         if (values.length > 0) {
-          averages[type] = values.reduce((a, b) => a + b) / values.length;
+          averages[code] = values.reduce((a, b) => a + b) / values.length;
         }
       }
     });
@@ -452,63 +437,30 @@ const ProviderVitalMonitoring = () => {
             </div>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-teal-600 mb-1">
-                  {currentVitalAverages.heart_rate
-                    ? Math.round(currentVitalAverages.heart_rate)
-                    : "N/A"}
-                </div>
-                <div className="text-sm text-gray-600 mb-2">
-                  Heart Rate (bpm)
-                </div>
-                <div className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
-                  Normal
-                </div>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-teal-600 mb-1">
-                  {currentVitalAverages.systolic_bp
-                    ? Math.round(currentVitalAverages.systolic_bp)
-                    : "N/A"}
-                  /
-                  {currentVitalAverages.diastolic_bp
-                    ? Math.round(currentVitalAverages.diastolic_bp)
-                    : "N/A"}
-                </div>
-                <div className="text-sm text-gray-600 mb-2">
-                  Blood Pressure (mmHg)
-                </div>
-                <div className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
-                  Normal
-                </div>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-teal-600 mb-1">
-                  {currentVitalAverages.temperature
-                    ? currentVitalAverages.temperature.toFixed(1)
-                    : "N/A"}
-                </div>
-                <div className="text-sm text-gray-600 mb-2">
-                  Temperature (°F)
-                </div>
-                <div className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
-                  Normal
-                </div>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-teal-600 mb-1">
-                  {currentVitalAverages.oxygen_saturation
-                    ? Math.round(currentVitalAverages.oxygen_saturation)
-                    : "N/A"}
-                </div>
-                <div className="text-sm text-gray-600 mb-2">
-                  Oxygen Saturation (%)
-                </div>
-                <div className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
-                  Normal
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(currentVitalAverages)
+                .slice(0, 6)
+                .map(([code, value]) => {
+                  const vital = vitals.find((v) => v.code === code);
+                  if (!vital) return null;
+
+                  return (
+                    <div
+                      key={code}
+                      className="text-center p-4 bg-gray-50 rounded-lg"
+                    >
+                      <div className="text-2xl font-bold text-teal-600 mb-1">
+                        {code === "TEMP" ? value.toFixed(1) : Math.round(value)}
+                      </div>
+                      <div className="text-sm text-gray-600 mb-2">
+                        {vital.name} ({vital.unit})
+                      </div>
+                      <div className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
+                        Normal
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>
