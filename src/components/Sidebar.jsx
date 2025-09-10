@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   FiUsers,
@@ -15,79 +15,16 @@ import {
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
-
-  // Navigation items based on user role
-  const getNavigationItems = () => {
-    if (!user) return [];
-
-    if (user.role === "admin") {
-      // Admin sees everything except Home
-      return [
-        { to: "/tables", label: "Tables", icon: FiDatabase },
-        {
-          to: "/comprehensive-medical-profile",
-          label: "Medical Profile",
-          icon: FiUsers,
-        },
-        {
-          to: "/consultation-report",
-          label: "Consultation Report",
-          icon: FiFileText,
-        },
-        {
-          to: "/provider-appointment-management",
-          label: "Appointment Management",
-          icon: FiCalendar,
-        },
-        {
-          to: "/provider-patient-profile",
-          label: "Patient Profile",
-          icon: FiUser,
-        },
-        {
-          to: "/provider-vital-monitoring",
-          label: "Vital Monitoring",
-          icon: FiHeart,
-        },
-        {
-          to: "/provider-patient-dashboard",
-          label: "Patient Dashboard",
-          icon: FiBarChart,
-        },
-        {
-          to: "/business-insights",
-          label: "Business Insights",
-          icon: FiTrendingUp,
-        },
-      ];
-    } else if (user.role === "provider") {
-      // Provider sees limited options except Home
-      return [
-        {
-          to: "/comprehensive-medical-profile",
-          label: "Medical Profile",
-          icon: FiUsers,
-        },
-        {
-          to: "/business-insights",
-          label: "Business Insights",
-          icon: FiTrendingUp,
-        },
-      ];
-    }
-
-    return [];
-  };
-
-  const navigationItems = getNavigationItems();
+  const navigationItems = [
+    { to: "/tables", label: "Tables", icon: FiDatabase },
+    { to: "/comprehensive-medical-profile", label: "Medical Profile", icon: FiUsers },
+    { to: "/consultation-report", label: "Consultation Report", icon: FiFileText },
+    { to: "/provider-appointment-management", label: "Appointment Management", icon: FiCalendar },
+    { to: "/provider-patient-profile", label: "Patient Profile", icon: FiUser },
+    { to: "/provider-vital-monitoring", label: "Vital Monitoring", icon: FiHeart },
+    { to: "/provider-patient-dashboard", label: "Patient Dashboard", icon: FiBarChart },
+    { to: "/business-insights", label: "Business Insights", icon: FiTrendingUp },
+  ];
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
@@ -105,9 +42,17 @@ const Sidebar = () => {
 
       {/* Overlay for mobile */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={toggleSidebar}
+        <button
+          type="button"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            aria-label="Close menu"
+            onClick={toggleSidebar}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                toggleSidebar();
+              }
+            }}
         />
       )}
 
@@ -145,25 +90,7 @@ const Sidebar = () => {
           </div>
 
           {/* User info at bottom - always visible, no scroll */}
-          {user && (
-            <div className="p-4 border-t border-teal-600 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold text-teal-700">
-                    {user.username?.charAt(0)?.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {user.role === "admin" ? "Admin" : "Dr."} {user.username}
-                  </p>
-                  <p className="text-xs text-teal-200 capitalize">
-                    {user.role}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Footer section removed (user info) */}
         </div>
       </div>
     </>
