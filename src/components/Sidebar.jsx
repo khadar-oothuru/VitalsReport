@@ -17,13 +17,37 @@ const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigationItems = [
     { to: "/tables", label: "Tables", icon: FiDatabase },
-    { to: "/comprehensive-medical-profile", label: "Medical Profile", icon: FiUsers },
-    { to: "/consultation-report", label: "Consultation Report", icon: FiFileText },
-    { to: "/provider-appointment-management", label: "Appointment Management", icon: FiCalendar },
-    { to: "/provider-patient-profile", label: "Patient Profile", icon: FiUser },
-    { to: "/provider-vital-monitoring", label: "Vital Monitoring", icon: FiHeart },
-    { to: "/provider-patient-dashboard", label: "Patient Dashboard", icon: FiBarChart },
-    { to: "/business-insights", label: "Business Insights", icon: FiTrendingUp },
+    {
+      to: "/comprehensive-medical-profile",
+      label: "Medical Profile",
+      icon: FiUsers,
+    },
+    {
+      to: "/consultation-report",
+      label: "Consultation Report",
+      icon: FiFileText,
+    },
+    {
+      to: "/provider-appointment-management",
+      label: "Appointment Management",
+      icon: FiCalendar,
+    },
+  // Removed Patient Profile link as requested
+    {
+      to: "/provider-vital-monitoring",
+      label: "Vital Monitoring",
+      icon: FiHeart,
+    },
+    {
+      to: "/provider-patient-dashboard",
+      label: "Patient Dashboard",
+      icon: FiBarChart,
+    },
+    {
+      to: "/business-insights",
+      label: "Business Insights",
+      icon: FiTrendingUp,
+    },
   ];
 
   const toggleSidebar = () => {
@@ -44,15 +68,15 @@ const Sidebar = () => {
       {isOpen && (
         <button
           type="button"
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-            aria-label="Close menu"
-            onClick={toggleSidebar}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                toggleSidebar();
-              }
-            }}
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          aria-label="Close menu"
+          onClick={toggleSidebar}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              toggleSidebar();
+            }
+          }}
         />
       )}
 

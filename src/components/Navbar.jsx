@@ -64,8 +64,8 @@ const Navbar = () => {
         </div>
 
         {/* Authentication Section */}
-  {/* Placeholder right section (removed auth controls) */}
-  <div className="flex items-center gap-3" />
+        {/* Placeholder right section (removed auth controls) */}
+        <div className="flex items-center gap-3" />
       </div>
     </header>
   );
