@@ -18,6 +18,7 @@ const ProviderPatientDashboard = () => {
   const [vitalRecords, setVitalRecords] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [vitals, setVitals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     provider: "",
@@ -36,6 +37,7 @@ const ProviderPatientDashboard = () => {
           vitalRecordsData,
           appointmentsData,
           providersData,
+          vitalsData,
         ] = await Promise.all([
           loadCSVWithFallback([
             "/dataTables/UserTable.csv",
@@ -73,6 +75,12 @@ const ProviderPatientDashboard = () => {
             "../dataTables/ProviderTable.csv",
             "ProviderTable.csv",
           ]),
+          loadCSVWithFallback([
+            "/dataTables/VitalTable.csv",
+            "dataTables/VitalTable.csv",
+            "../dataTables/VitalTable.csv",
+            "VitalTable.csv",
+          ]),
         ]);
 
         setUsers(usersData.data);
@@ -81,6 +89,7 @@ const ProviderPatientDashboard = () => {
         setVitalRecords(vitalRecordsData.data);
         setAppointments(appointmentsData.data);
         setProviders(providersData.data);
+        setVitals(vitalsData.data);
         setLoading(false);
       } catch (error) {
         console.error("Error loading data:", error);
@@ -90,34 +99,6 @@ const ProviderPatientDashboard = () => {
 
     loadData();
   }, []);
-
-  // Helper functions
-  const getAlertLevel = (value, vitalCode) => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) return "normal";
-
-    // Find the vital definition to get normal ranges
-    const vital = vitals.find((v) => v.code === vitalCode);
-    if (!vital) return "normal";
-
-    const minNormal = parseFloat(vital.normal_range_min);
-    const maxNormal = parseFloat(vital.normal_range_max);
-
-    if (isNaN(minNormal) || isNaN(maxNormal)) return "normal";
-
-    // Define warning ranges (10% outside normal range)
-    const warningBuffer = (maxNormal - minNormal) * 0.1;
-    const minWarning = minNormal - warningBuffer;
-    const maxWarning = maxNormal + warningBuffer;
-
-    if (numValue < minNormal || numValue > maxNormal) {
-      return "critical";
-    } else if (numValue < minWarning || numValue > maxWarning) {
-      return "warning";
-    }
-
-    return "normal";
-  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -147,6 +128,33 @@ const ProviderPatientDashboard = () => {
 
   // Process patient data
   const processedPatients = useMemo(() => {
+    // Helper function to get alert level - defined inside useMemo to access vitals
+    const getAlertLevel = (value, vitalCode) => {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) return "normal";
+
+      // Find the vital definition to get normal ranges
+      const vital = vitals.find((v) => v.code === vitalCode);
+      if (!vital) return "normal";
+
+      const minNormal = parseFloat(vital.normal_range_min);
+      const maxNormal = parseFloat(vital.normal_range_max);
+
+      if (isNaN(minNormal) || isNaN(maxNormal)) return "normal";
+
+      // Define warning ranges (10% outside normal range)
+      const warningBuffer = (maxNormal - minNormal) * 0.1;
+      const minWarning = minNormal - warningBuffer;
+      const maxWarning = maxNormal + warningBuffer;
+
+      if (numValue < minNormal || numValue > maxNormal) {
+        return "critical";
+      } else if (numValue < minWarning || numValue > maxWarning) {
+        return "warning";
+      }
+
+      return "normal";
+    };
     return users.map((user) => {
       const userDetail = userDetails.find((ud) => ud.user_id === user.user_id);
       const medicalRecord = medicalRecords.find(
@@ -168,8 +176,9 @@ const ProviderPatientDashboard = () => {
         demographics = JSON.parse(medicalRecord?.demographics || "{}");
         medicalHistory = JSON.parse(medicalRecord?.medical_history || "{}");
         vitalsData = JSON.parse(medicalRecord?.vitals || "{}");
-      } catch (e) {
+      } catch (error) {
         // Handle JSON parsing errors gracefully
+        console.warn("Error parsing medical record JSON:", error);
       }
 
       // Calculate age
@@ -201,12 +210,20 @@ const ProviderPatientDashboard = () => {
         }
       }
 
-      // Get primary condition
+      // Get primary condition from medical history
       const primaryCondition = medicalHistory?.hypertension
         ? "Hypertension"
         : medicalHistory?.diabetes
         ? "Diabetes"
-        : medicalHistory?.chronic_conditions || "None";
+        : medicalHistory?.heart_disease
+        ? "Heart Disease"
+        : medicalHistory?.asthma
+        ? "Asthma"
+        : medicalHistory?.chronic_conditions
+        ? medicalHistory.chronic_conditions
+        : medicalHistory?.allergies
+        ? `Allergies: ${medicalHistory.allergies}`
+        : "No chronic conditions";
 
       return {
         ...user,
@@ -236,13 +253,14 @@ const ProviderPatientDashboard = () => {
             : "normal",
       };
     });
-  }, [users, userDetails, medicalRecords, vitalRecords, appointments]);
+  }, [users, userDetails, medicalRecords, vitalRecords, appointments, vitals]);
 
   // Filter patients based on current filters
   const filteredPatients = useMemo(() => {
     let filtered = processedPatients;
 
     if (filters.provider) {
+      // Filter by provider who is assigned to the patient through appointments
       filtered = filtered.filter((patient) => {
         const patientAppointments = appointments.filter(
           (apt) => apt.user_id === patient.user_id
@@ -279,26 +297,39 @@ const ProviderPatientDashboard = () => {
     return filtered;
   }, [processedPatients, filters, appointments, providers]);
 
-  // Get patient statistics
+  // Get patient statistics (based on filtered patients)
   const patientStats = useMemo(() => {
-    const total = processedPatients.length;
-    const active = processedPatients.filter(
-      (p) => p.status === "active"
-    ).length;
-    const newThisMonth = processedPatients.filter((p) => {
-      const createdDate = new Date(p.created_at || p.user_id); // Use created_at if available, fallback to user_id
+    const total = filteredPatients.length;
+    const active = filteredPatients.filter((p) => p.status === "active").length;
+
+    // Calculate new patients this month based on first appointment date
+    const newThisMonth = filteredPatients.filter((p) => {
+      if (p.appointments.length === 0) return false;
+
+      // Find the earliest appointment for this patient
+      const earliestAppointment = p.appointments.sort(
+        (a, b) => parseInt(a.start_time) - parseInt(b.start_time)
+      )[0];
+
+      if (!earliestAppointment) return false;
+
+      const appointmentDate = new Date(
+        parseInt(earliestAppointment.start_time) * 1000
+      );
       const thisMonth = new Date();
       thisMonth.setDate(1);
-      return createdDate >= thisMonth;
+
+      return appointmentDate >= thisMonth;
     }).length;
-    const critical = processedPatients.filter(
+
+    const critical = filteredPatients.filter(
       (p) => p.status === "critical"
     ).length;
 
     return { total, active, newThisMonth, critical };
-  }, [processedPatients]);
+  }, [filteredPatients]);
 
-  // Get today's appointments
+  // Get today's appointments (filtered by selected provider)
   const todaysAppointments = useMemo(() => {
     const today = new Date();
     const todayStart = new Date(
@@ -308,11 +339,24 @@ const ProviderPatientDashboard = () => {
     );
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    return appointments
-      .filter((apt) => {
-        const aptDate = new Date(parseInt(apt.start_time) * 1000);
-        return aptDate >= todayStart && aptDate < todayEnd;
-      })
+    let filteredAppointments = appointments.filter((apt) => {
+      const aptDate = new Date(parseInt(apt.start_time) * 1000);
+      return aptDate >= todayStart && aptDate < todayEnd;
+    });
+
+    // Filter by selected provider if one is selected
+    if (filters.provider) {
+      filteredAppointments = filteredAppointments.filter((apt) => {
+        const provider = providers.find((p) => p.id === apt.provider_id);
+        return (
+          provider &&
+          `${provider.prefix} ${provider.first_name} ${provider.last_name}` ===
+            filters.provider
+        );
+      });
+    }
+
+    return filteredAppointments
       .sort((a, b) => parseInt(a.start_time) - parseInt(b.start_time))
       .slice(0, 10)
       .map((apt) => {
@@ -329,19 +373,24 @@ const ProviderPatientDashboard = () => {
           time: formatTime(new Date(parseInt(apt.start_time) * 1000)),
         };
       });
-  }, [appointments, users, providers]);
+  }, [appointments, users, providers, filters.provider]);
 
-  // Get vital alerts
+  // Get vital alerts (based on filtered patients)
   const vitalAlerts = useMemo(() => {
-    return processedPatients
+    return filteredPatients
       .filter((p) => p.status === "critical" || p.status === "pending")
       .slice(0, 10)
       .map((patient) => {
         const latestVital = patient.latestVitals[0];
+        const vital = vitals.find((v) => v.code === latestVital?.vital_code);
         return {
           patient_name: `${patient.first_name} ${patient.last_name}`,
-          vital: latestVital ? latestVital.vital_code : "Unknown",
-          value: latestVital ? latestVital.value : "N/A",
+          vital: latestVital
+            ? vital?.name || latestVital.vital_code
+            : "No recent vitals",
+          value: latestVital
+            ? `${latestVital.value} ${vital?.unit || ""}`
+            : "N/A",
           status:
             patient.status === "critical"
               ? "Critical"
@@ -350,29 +399,36 @@ const ProviderPatientDashboard = () => {
               : "Normal",
           time: latestVital
             ? formatTimeAgo(latestVital.recorded_at)
-            : "Unknown",
+            : "No recent readings",
         };
       });
-  }, [processedPatients]);
+  }, [filteredPatients, vitals]);
 
-  // Get recent messages (simulated)
+  // Get recent messages based on appointment notes (based on filtered patients)
   const recentMessages = useMemo(() => {
-    return processedPatients
+    return filteredPatients
       .filter((p) => p.recentAppointments.length > 0)
       .slice(0, 10)
-      .map((patient) => ({
-        patient_name: `${patient.first_name} ${patient.last_name}`,
-        message: `Dr. ${
-          providers.find(
-            (p) => p.id === patient.recentAppointments[0]?.provider_id
-          )?.last_name || "Provider"
-        }, I have updated your treatment plan based on today's visit...`,
-        time: formatTimeAgo(
-          new Date(parseInt(patient.recentAppointments[0].start_time) * 1000)
-        ),
-        unread: false, // Messages are considered read by default
-      }));
-  }, [processedPatients, providers]);
+      .map((patient) => {
+        const recentAppointment = patient.recentAppointments[0];
+        const provider = providers.find(
+          (p) => p.id === recentAppointment?.provider_id
+        );
+
+        return {
+          patient_name: `${patient.first_name} ${patient.last_name}`,
+          message:
+            recentAppointment?.provider_notes ||
+            `Follow-up from ${formatDate(
+              new Date(parseInt(recentAppointment.start_time) * 1000)
+            )} appointment with Dr. ${provider?.last_name || "Provider"}`,
+          time: formatTimeAgo(
+            new Date(parseInt(recentAppointment.start_time) * 1000)
+          ),
+          unread: false, // Messages are considered read by default
+        };
+      });
+  }, [filteredPatients, providers]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -746,7 +802,9 @@ const ProviderPatientDashboard = () => {
                     {patient.age}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {patient.demographics?.gender || "Unknown"}
+                    {patient.demographics?.gender ||
+                      patient.userDetail?.gender ||
+                      "Not specified"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {patient.primaryCondition}
@@ -772,9 +830,9 @@ const ProviderPatientDashboard = () => {
                           );
                           return provider
                             ? `${provider.prefix} ${provider.first_name} ${provider.last_name}`
-                            : "Unknown";
+                            : "Provider not found";
                         })()
-                      : "No recent provider"}
+                      : "No appointments scheduled"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button className="text-teal-600 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1 rounded-md transition-colors">
@@ -826,12 +884,23 @@ const ProviderPatientDashboard = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {processedPatients
+              {filteredPatients
                 .flatMap((p) =>
-                  p.latestVitals.map((v) => ({
-                    ...v,
-                    patient_name: `${p.first_name} ${p.last_name}`,
-                  }))
+                  p.latestVitals.map((v) => {
+                    const vital = vitals.find(
+                      (vital) => vital.code === v.vital_code
+                    );
+                    return {
+                      ...v,
+                      patient_name: `${p.first_name} ${p.last_name}`,
+                      vital_name: vital?.name || v.vital_code,
+                      vital_unit: vital?.unit || "",
+                      normal_range: vital
+                        ? `${vital.normal_range_min}-${vital.normal_range_max} ${vital.unit}`
+                        : "N/A",
+                      alert_level: p.vitalStatus,
+                    };
+                  })
                 )
                 .sort(
                   (a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)
@@ -843,24 +912,32 @@ const ProviderPatientDashboard = () => {
                       {record.patient_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {record.vital_code}
+                      {record.vital_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {record.value}
+                      {record.value} {record.vital_unit}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      Normal Range
+                      {record.normal_range}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                        Normal
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          record.alert_level
+                        )}`}
+                      >
+                        {record.alert_level === "critical"
+                          ? "Critical"
+                          : record.alert_level === "warning"
+                          ? "Warning"
+                          : "Normal"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(record.recorded_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      Clinic
+                      {record.location || "Clinic"}
                     </td>
                   </tr>
                 ))}
@@ -908,10 +985,24 @@ const ProviderPatientDashboard = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {appointments
-                .filter(
-                  (apt) =>
-                    new Date(parseInt(apt.start_time) * 1000) > new Date()
-                )
+                .filter((apt) => {
+                  const isFuture =
+                    new Date(parseInt(apt.start_time) * 1000) > new Date();
+
+                  // Filter by selected provider if one is selected
+                  if (filters.provider) {
+                    const provider = providers.find(
+                      (p) => p.id === apt.provider_id
+                    );
+                    const matchesProvider =
+                      provider &&
+                      `${provider.prefix} ${provider.first_name} ${provider.last_name}` ===
+                        filters.provider;
+                    return isFuture && matchesProvider;
+                  }
+
+                  return isFuture;
+                })
                 .sort((a, b) => parseInt(a.start_time) - parseInt(b.start_time))
                 .slice(0, 20)
                 .map((appointment, index) => {
@@ -943,7 +1034,7 @@ const ProviderPatientDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {appointment.appointment_type?.replace("_", " ") ||
-                          "N/A"}
+                          "General consultation"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -951,11 +1042,11 @@ const ProviderPatientDashboard = () => {
                             appointment.status
                           )}`}
                         >
-                          {appointment.status?.replace("_", " ") || "N/A"}
+                          {appointment.status?.replace("_", " ") || "Scheduled"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                        {appointment.notes || "No notes"}
+                        {appointment.notes || "No additional notes"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button className="text-teal-600 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1 rounded-md transition-colors">

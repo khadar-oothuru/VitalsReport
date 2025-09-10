@@ -18,6 +18,7 @@ const ProviderVitalMonitoring = () => {
   const [vitals, setVitals] = useState([]);
   const [users, setUsers] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     provider: "",
@@ -29,38 +30,50 @@ const ProviderVitalMonitoring = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [vitalRecordsData, vitalsData, usersData, providersData] =
-          await Promise.all([
-            loadCSVWithFallback([
-              "/dataTables/VitalRecordTable.csv",
-              "dataTables/VitalRecordTable.csv",
-              "../dataTables/VitalRecordTable.csv",
-              "VitalRecordTable.csv",
-            ]),
-            loadCSVWithFallback([
-              "/dataTables/VitalTable.csv",
-              "dataTables/VitalTable.csv",
-              "../dataTables/VitalTable.csv",
-              "VitalTable.csv",
-            ]),
-            loadCSVWithFallback([
-              "/dataTables/UserTable.csv",
-              "dataTables/UserTable.csv",
-              "../dataTables/UserTable.csv",
-              "UserTable.csv",
-            ]),
-            loadCSVWithFallback([
-              "/dataTables/ProviderTable.csv",
-              "dataTables/ProviderTable.csv",
-              "../dataTables/ProviderTable.csv",
-              "ProviderTable.csv",
-            ]),
-          ]);
+        const [
+          vitalRecordsData,
+          vitalsData,
+          usersData,
+          providersData,
+          appointmentsData,
+        ] = await Promise.all([
+          loadCSVWithFallback([
+            "/dataTables/VitalRecordTable.csv",
+            "dataTables/VitalRecordTable.csv",
+            "../dataTables/VitalRecordTable.csv",
+            "VitalRecordTable.csv",
+          ]),
+          loadCSVWithFallback([
+            "/dataTables/VitalTable.csv",
+            "dataTables/VitalTable.csv",
+            "../dataTables/VitalTable.csv",
+            "VitalTable.csv",
+          ]),
+          loadCSVWithFallback([
+            "/dataTables/UserTable.csv",
+            "dataTables/UserTable.csv",
+            "../dataTables/UserTable.csv",
+            "UserTable.csv",
+          ]),
+          loadCSVWithFallback([
+            "/dataTables/ProviderTable.csv",
+            "dataTables/ProviderTable.csv",
+            "../dataTables/ProviderTable.csv",
+            "ProviderTable.csv",
+          ]),
+          loadCSVWithFallback([
+            "/dataTables/AppointmentTable.csv",
+            "dataTables/AppointmentTable.csv",
+            "../dataTables/AppointmentTable.csv",
+            "AppointmentTable.csv",
+          ]),
+        ]);
 
         setVitalRecords(vitalRecordsData.data);
         setVitals(vitalsData.data);
         setUsers(usersData.data);
         setProviders(providersData.data);
+        setAppointments(appointmentsData.data);
         setLoading(false);
       } catch (error) {
         console.error("Error loading data:", error);
@@ -142,9 +155,23 @@ const ProviderVitalMonitoring = () => {
     let filtered = processedVitalRecords;
 
     if (filters.provider) {
-      filtered = filtered.filter(
-        (record) => record.provider_name === filters.provider
-      );
+      // Filter by provider who is assigned to the patient through appointments
+      filtered = filtered.filter((record) => {
+        // Find appointments for this patient
+        const patientAppointments = appointments.filter(
+          (apt) => apt.user_id === record.user_id
+        );
+
+        // Check if any appointment has the selected provider
+        return patientAppointments.some((apt) => {
+          const provider = providers.find((p) => p.id === apt.provider_id);
+          return (
+            provider &&
+            `${provider.prefix} ${provider.first_name} ${provider.last_name}` ===
+              filters.provider
+          );
+        });
+      });
     }
 
     if (filters.vitalType) {
@@ -160,37 +187,35 @@ const ProviderVitalMonitoring = () => {
     }
 
     return filtered;
-  }, [processedVitalRecords, filters]);
+  }, [processedVitalRecords, filters, appointments, providers]);
 
-  // Get vital statistics
+  // Get vital statistics (based on filtered data)
   const vitalStats = useMemo(() => {
-    const total = processedVitalRecords.length;
-    const critical = processedVitalRecords.filter(
+    const total = filteredVitalRecords.length;
+    const critical = filteredVitalRecords.filter(
       (r) => r.alert_level === "critical"
     ).length;
-    const warning = processedVitalRecords.filter(
+    const warning = filteredVitalRecords.filter(
       (r) => r.alert_level === "warning"
     ).length;
-    const normal = processedVitalRecords.filter(
+    const normal = filteredVitalRecords.filter(
       (r) => r.alert_level === "normal"
     ).length;
 
     return { total, critical, warning, normal };
-  }, [processedVitalRecords]);
+  }, [filteredVitalRecords]);
 
-  // Get current vital averages
+  // Get current vital averages (based on filtered data)
   const currentVitalAverages = useMemo(() => {
     const averages = {};
 
-    // Get unique vital codes from actual data
+    // Get unique vital codes from filtered data
     const vitalCodes = [
-      ...new Set(processedVitalRecords.map((r) => r.vital_code)),
+      ...new Set(filteredVitalRecords.map((r) => r.vital_code)),
     ];
 
     vitalCodes.forEach((code) => {
-      const records = processedVitalRecords.filter(
-        (r) => r.vital_code === code
-      );
+      const records = filteredVitalRecords.filter((r) => r.vital_code === code);
       if (records.length > 0) {
         const values = records
           .map((r) => parseFloat(r.value))
@@ -202,22 +227,22 @@ const ProviderVitalMonitoring = () => {
     });
 
     return averages;
-  }, [processedVitalRecords]);
+  }, [filteredVitalRecords]);
 
-  // Get critical alerts (last 10)
+  // Get critical alerts (last 10) - based on filtered data
   const criticalAlerts = useMemo(() => {
-    return processedVitalRecords
+    return filteredVitalRecords
       .filter((r) => r.alert_level === "critical")
       .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at))
       .slice(0, 10);
-  }, [processedVitalRecords]);
+  }, [filteredVitalRecords]);
 
-  // Get recent records (last 10)
+  // Get recent records (last 10) - based on filtered data
   const recentRecords = useMemo(() => {
-    return processedVitalRecords
+    return filteredVitalRecords
       .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at))
       .slice(0, 10);
-  }, [processedVitalRecords]);
+  }, [filteredVitalRecords]);
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
@@ -521,7 +546,7 @@ const ProviderVitalMonitoring = () => {
           <div className="p-6">
             <div className="h-80">
               <VitalTrendsChart
-                vitalRecords={processedVitalRecords}
+                vitalRecords={filteredVitalRecords}
                 vitals={vitals}
               />
             </div>
