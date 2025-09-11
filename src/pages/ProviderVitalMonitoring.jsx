@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   HiOutlineHeart,
   HiOutlineExclamationTriangle,
   HiOutlineChartBar,
   HiOutlineDocumentText,
   HiOutlineAdjustmentsHorizontal,
-  HiOutlineMagnifyingGlass,
-  HiOutlineClock,
-  HiOutlineUserGroup,
 } from "react-icons/hi2";
 import { loadCSVWithFallback } from "../lib/csv.js";
 import VitalTrendsChart from "../components/VitalTrendsChart.jsx";
@@ -25,6 +22,15 @@ const ProviderVitalMonitoring = () => {
     vitalType: "",
     alertLevel: "",
   });
+
+  // State for trends chart controls
+  const [trendVital, setTrendVital] = useState(""); // vital code
+  const [trendRange, setTrendRange] = useState("24h"); // '24h' | '7d'
+  const [trendPatientId, setTrendPatientId] = useState("all");
+
+  // Modal state
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [showPatientModal, setShowPatientModal] = useState(false);
 
   // Load data from CSV files
   useEffect(() => {
@@ -86,28 +92,21 @@ const ProviderVitalMonitoring = () => {
 
   // Helper functions
   const getAlertLevel = (value, vital) => {
-    if (!vital || !value) return "normal";
-
+    if (!vital || value === undefined || value === null || value === "")
+      return "normal";
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return "normal";
-
-    // Use actual normal ranges from VitalTable.csv
     const minNormal = parseFloat(vital.normal_range_min);
     const maxNormal = parseFloat(vital.normal_range_max);
-
     if (isNaN(minNormal) || isNaN(maxNormal)) return "normal";
-
-    // Define warning ranges (10% outside normal range)
-    const warningBuffer = (maxNormal - minNormal) * 0.1;
+    const span = Math.max(maxNormal - minNormal, 1);
+    const warningBuffer = span * 0.1; // 10% outside
     const minWarning = minNormal - warningBuffer;
     const maxWarning = maxNormal + warningBuffer;
-
-    if (numValue < minNormal || numValue > maxNormal) {
-      return "critical";
-    } else if (numValue < minWarning || numValue > maxWarning) {
-      return "warning";
-    }
-
+    // Critical if outside extended warning band
+    if (numValue < minWarning || numValue > maxWarning) return "critical";
+    // Warning if outside normal but within extended band
+    if (numValue < minNormal || numValue > maxNormal) return "warning";
     return "normal";
   };
 
@@ -122,16 +121,58 @@ const ProviderVitalMonitoring = () => {
     }
   };
 
-  // Process vital records with patient and provider information
+  // Index appointments by user for faster provider inference
+  const appointmentsByUser = useMemo(() => {
+    const map = new Map();
+    appointments.forEach((apt) => {
+      if (!apt.user_id) return;
+      if (!map.has(apt.user_id)) map.set(apt.user_id, []);
+      map.get(apt.user_id).push(apt);
+    });
+    // Sort each list by start_time (epoch seconds) so we can binary search later if needed
+    for (const list of map.values()) {
+      list.sort(
+        (a, b) =>
+          (parseInt(a.start_time, 10) || 0) - (parseInt(b.start_time, 10) || 0)
+      );
+    }
+    return map;
+  }, [appointments]);
+
+  // Infer provider for a vital record (if provider_id not directly present or unmatched)
+  const inferProviderForRecord = useCallback(
+    (record) => {
+      if (record.provider_id) {
+        const direct = providers.find((p) => p.id === record.provider_id);
+        if (direct) return direct;
+      }
+      const userApts = appointmentsByUser.get(record.user_id) || [];
+      if (!userApts.length) return null;
+      const recTime = new Date(record.recorded_at).getTime();
+      let closest = null;
+      let minDiff = Number.POSITIVE_INFINITY;
+      userApts.forEach((apt) => {
+        if (!apt.provider_id) return;
+        const startMs = (parseInt(apt.start_time, 10) || 0) * 1000; // assume epoch seconds
+        const diff = Math.abs(recTime - startMs);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = apt;
+        }
+      });
+      if (!closest) return null;
+      return providers.find((p) => p.id === closest.provider_id) || null;
+    },
+    [appointmentsByUser, providers]
+  );
+
+  // Process vital records with patient & inferred provider
   const processedVitalRecords = useMemo(() => {
     return vitalRecords.map((record) => {
       const user = users.find((u) => u.user_id === record.user_id);
       const vital = vitals.find((v) => v.code === record.vital_code);
-      const provider = providers.find((p) => p.id === record.provider_id);
-
-      // Determine alert level based on vital value
+      const provider = inferProviderForRecord(record);
       const alertLevel = getAlertLevel(record.value, vital);
-
       return {
         ...record,
         patient_name: user
@@ -144,50 +185,70 @@ const ProviderVitalMonitoring = () => {
         provider_name: provider
           ? `${provider.prefix} ${provider.first_name} ${provider.last_name}`
           : "Unknown Provider",
+        provider_id_inferred: provider?.id || record.provider_id || "",
         alert_level: alertLevel,
         status: getStatusFromAlertLevel(alertLevel),
       };
     });
-  }, [vitalRecords, users, vitals, providers]);
+  }, [vitalRecords, users, vitals, inferProviderForRecord]);
 
   // Filter vital records based on current filters
-  const filteredVitalRecords = useMemo(() => {
-    let filtered = processedVitalRecords;
-
-    if (filters.provider) {
-      // Filter by provider who is assigned to the patient through appointments
-      filtered = filtered.filter((record) => {
-        // Find appointments for this patient
-        const patientAppointments = appointments.filter(
-          (apt) => apt.user_id === record.user_id
+  const providerMatches = useCallback(
+    (record, providerName) => {
+      const patientAppointments = appointments.filter(
+        (apt) => apt.user_id === record.user_id
+      );
+      return patientAppointments.some((apt) => {
+        const provider = providers.find((p) => p.id === apt.provider_id);
+        return (
+          provider &&
+          `${provider.prefix} ${provider.first_name} ${provider.last_name}` ===
+            providerName
         );
-
-        // Check if any appointment has the selected provider
-        return patientAppointments.some((apt) => {
-          const provider = providers.find((p) => p.id === apt.provider_id);
-          return (
-            provider &&
-            `${provider.prefix} ${provider.first_name} ${provider.last_name}` ===
-              filters.provider
-          );
-        });
       });
-    }
+    },
+    [appointments, providers]
+  );
 
-    if (filters.vitalType) {
-      filtered = filtered.filter(
-        (record) => record.vital_code === filters.vitalType
-      );
-    }
+  const filteredVitalRecords = useMemo(() => {
+    return processedVitalRecords.filter((record) => {
+      if (filters.provider && !providerMatches(record, filters.provider)) {
+        return false;
+      }
+      if (filters.vitalType && record.vital_code !== filters.vitalType) {
+        return false;
+      }
+      if (filters.alertLevel && record.alert_level !== filters.alertLevel) {
+        return false;
+      }
+      return true;
+    });
+  }, [processedVitalRecords, filters, providerMatches]);
 
-    if (filters.alertLevel) {
-      filtered = filtered.filter(
-        (record) => record.alert_level === filters.alertLevel
-      );
-    }
+  // Patients eligible for trends based on provider filter
+  const trendPatients = useMemo(() => {
+    if (!filters.provider) return users;
+    const providerObj = providers.find(
+      (p) => `${p.prefix} ${p.first_name} ${p.last_name}` === filters.provider
+    );
+    if (!providerObj) return users;
+    const ids = new Set();
+    appointments.forEach((apt) => {
+      if (apt.provider_id === providerObj.id) ids.add(apt.user_id);
+    });
+    processedVitalRecords.forEach((r) => {
+      if (r.provider_id_inferred === providerObj.id) ids.add(r.user_id);
+    });
+    return users.filter((u) => ids.has(u.user_id));
+  }, [filters.provider, users, appointments, processedVitalRecords, providers]);
 
-    return filtered;
-  }, [processedVitalRecords, filters, appointments, providers]);
+  // Reset patient selection if provider changed and current patient not valid
+  useEffect(() => {
+    if (trendPatientId === "all") return;
+    if (!trendPatients.some((u) => u.user_id === trendPatientId)) {
+      setTrendPatientId("all");
+    }
+  }, [trendPatients, trendPatientId]);
 
   // Get vital statistics (based on filtered data)
   const vitalStats = useMemo(() => {
@@ -205,41 +266,10 @@ const ProviderVitalMonitoring = () => {
     return { total, critical, warning, normal };
   }, [filteredVitalRecords]);
 
-  // Get current vital averages (based on filtered data)
-  const currentVitalAverages = useMemo(() => {
-    const averages = {};
-
-    // Get unique vital codes from filtered data
-    const vitalCodes = [
-      ...new Set(filteredVitalRecords.map((r) => r.vital_code)),
-    ];
-
-    vitalCodes.forEach((code) => {
-      const records = filteredVitalRecords.filter((r) => r.vital_code === code);
-      if (records.length > 0) {
-        const values = records
-          .map((r) => parseFloat(r.value))
-          .filter((v) => !isNaN(v));
-        if (values.length > 0) {
-          averages[code] = values.reduce((a, b) => a + b) / values.length;
-        }
-      }
-    });
-
-    return averages;
-  }, [filteredVitalRecords]);
-
   // Get critical alerts (last 10) - based on filtered data
   const criticalAlerts = useMemo(() => {
     return filteredVitalRecords
       .filter((r) => r.alert_level === "critical")
-      .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at))
-      .slice(0, 10);
-  }, [filteredVitalRecords]);
-
-  // Get recent records (last 10) - based on filtered data
-  const recentRecords = useMemo(() => {
-    return filteredVitalRecords
       .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at))
       .slice(0, 10);
   }, [filteredVitalRecords]);
@@ -257,16 +287,7 @@ const ProviderVitalMonitoring = () => {
     }
   };
 
-  const getAlertColor = (alertLevel) => {
-    switch (alertLevel) {
-      case "critical":
-        return "alert-critical";
-      case "warning":
-        return "alert-warning";
-      default:
-        return "alert-normal";
-    }
-  };
+  // Removed unused getAlertColor helper
 
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString("en-US", {
@@ -303,6 +324,29 @@ const ProviderVitalMonitoring = () => {
     // Filters are applied automatically through useMemo
     console.log("Filters applied:", filters);
   };
+
+  const openPatientModal = (patientId) => {
+    setSelectedPatientId(patientId);
+    setShowPatientModal(true);
+  };
+
+  const closePatientModal = () => {
+    setShowPatientModal(false);
+    setSelectedPatientId(null);
+  };
+
+  const selectedPatientRecords = useMemo(() => {
+    if (!selectedPatientId) return [];
+    return processedVitalRecords
+      .filter((r) => r.user_id === selectedPatientId)
+      .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+  }, [selectedPatientId, processedVitalRecords]);
+
+  const selectedPatientInfo = useMemo(() => {
+    if (!selectedPatientId) return null;
+    const user = users.find((u) => u.user_id === selectedPatientId);
+    return user || null;
+  }, [selectedPatientId, users]);
 
   if (loading) {
     return (
@@ -348,10 +392,14 @@ const ProviderVitalMonitoring = () => {
         <div className="p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="filter-provider"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Provider
               </label>
               <select
+                id="filter-provider"
                 value={filters.provider}
                 onChange={(e) => handleFilterChange("provider", e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -368,10 +416,14 @@ const ProviderVitalMonitoring = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="filter-vital"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Vital Type
               </label>
               <select
+                id="filter-vital"
                 value={filters.vitalType}
                 onChange={(e) =>
                   handleFilterChange("vitalType", e.target.value)
@@ -387,10 +439,14 @@ const ProviderVitalMonitoring = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="filter-alert"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Alert Level
               </label>
               <select
+                id="filter-alert"
                 value={filters.alertLevel}
                 onChange={(e) =>
                   handleFilterChange("alertLevel", e.target.value)
@@ -451,45 +507,8 @@ const ProviderVitalMonitoring = () => {
         </div>
       </div>
 
-      {/* Dashboard Grid */}
+      {/* Dashboard Grid (Critical Alerts + Trends) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Current Vital Averages */}
-        <div className="bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-6 py-4">
-            <div className="flex items-center gap-3">
-              <HiOutlineHeart className="w-5 h-5" />
-              <h3 className="text-lg font-semibold">Current Vital Averages</h3>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(currentVitalAverages)
-                .slice(0, 6)
-                .map(([code, value]) => {
-                  const vital = vitals.find((v) => v.code === code);
-                  if (!vital) return null;
-
-                  return (
-                    <div
-                      key={code}
-                      className="text-center p-4 bg-gray-50 rounded-lg"
-                    >
-                      <div className="text-2xl font-bold text-teal-600 mb-1">
-                        {code === "TEMP" ? value.toFixed(1) : Math.round(value)}
-                      </div>
-                      <div className="text-sm text-gray-600 mb-2">
-                        {vital.name} ({vital.unit})
-                      </div>
-                      <div className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
-                        Normal
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-
         {/* Critical Alerts */}
         <div className="bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden">
           <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4">
@@ -500,10 +519,12 @@ const ProviderVitalMonitoring = () => {
           </div>
           <div className="p-6 max-h-96 overflow-y-auto">
             {criticalAlerts.length > 0 ? (
-              criticalAlerts.map((alert, index) => (
-                <div
-                  key={index}
-                  className="flex items-center p-3 bg-gray-50 rounded-lg mb-3"
+              criticalAlerts.map((alert) => (
+                <button
+                  key={`${alert.user_id}-${alert.vital_code}-${alert.recorded_at}`}
+                  type="button"
+                  className="flex w-full text-left items-center p-3 bg-gray-50 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-teal-500 hover:bg-gray-100 transition"
+                  onClick={() => openPatientModal(alert.user_id)}
                 >
                   <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
                     <HiOutlineExclamationTriangle className="w-5 h-5 text-red-600" />
@@ -522,7 +543,7 @@ const ProviderVitalMonitoring = () => {
                   <div className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
                     HIGH
                   </div>
-                </div>
+                </button>
               ))
             ) : (
               <div className="text-center py-8">
@@ -535,70 +556,105 @@ const ProviderVitalMonitoring = () => {
           </div>
         </div>
 
-        {/* Vital Trends Chart */}
+        {/* Vital Trends */}
         <div className="bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden">
           <div className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white px-6 py-4">
             <div className="flex items-center gap-3">
               <HiOutlineChartBar className="w-5 h-5" />
-              <h3 className="text-lg font-semibold">Vital Trends (24h)</h3>
+              <h3 className="text-lg font-semibold">Vital Trends</h3>
             </div>
           </div>
-          <div className="p-6">
-            <div className="h-80">
-              <VitalTrendsChart
-                vitalRecords={filteredVitalRecords}
-                vitals={vitals}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Records */}
-        <div className="bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-4">
-            <div className="flex items-center gap-3">
-              <HiOutlineDocumentText className="w-5 h-5" />
-              <h3 className="text-lg font-semibold">Recent Records</h3>
-            </div>
-          </div>
-          <div className="p-6 max-h-96 overflow-y-auto">
-            {recentRecords.length > 0 ? (
-              recentRecords.map((record, index) => (
-                <div
-                  key={index}
-                  className="flex items-center p-3 bg-gray-50 rounded-lg mb-3"
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label
+                  htmlFor="trend-patient"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                    <HiOutlineDocumentText className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">
-                      {record.patient_name}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {record.vital_name}: {record.value} {record.vital_unit}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {formatTimeAgo(record.recorded_at)}
-                    </div>
-                  </div>
-                  <div
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                      record.status
-                    )}`}
-                  >
-                    {record.status}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <div className="text-gray-400 mb-2">
-                  <HiOutlineDocumentText className="w-12 h-12 mx-auto" />
-                </div>
-                <p className="text-gray-500">No recent records available</p>
+                  Patient
+                </label>
+                <select
+                  id="trend-patient"
+                  value={trendPatientId}
+                  onChange={(e) => setTrendPatientId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="all">
+                    {filters.provider
+                      ? "All Provider's Patients"
+                      : "All Patients"}
+                  </option>
+                  {trendPatients.map((u) => (
+                    <option key={u.user_id} value={u.user_id}>
+                      {u.first_name} {u.last_name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
+              <div>
+                <label
+                  htmlFor="trend-vital"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Select Vital
+                </label>
+                <select
+                  id="trend-vital"
+                  value={trendVital}
+                  onChange={(e) => setTrendVital(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="">Choose Vital</option>
+                  {vitals.map((v) => (
+                    <option key={v.code} value={v.code}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="trend-range"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Range
+                </label>
+                <select
+                  id="trend-range"
+                  value={trendRange}
+                  onChange={(e) => setTrendRange(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="24h">Last 24 Hours</option>
+                  <option value="7d">Last 7 Days</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  disabled
+                  className="w-full bg-teal-600 text-white px-4 py-2 rounded-lg font-medium opacity-60 cursor-not-allowed"
+                >
+                  Custom (Soon)
+                </button>
+              </div>
+            </div>
+            <div className="h-80">
+              {trendVital ? (
+                <VitalTrendsChart
+                  vitalRecords={filteredVitalRecords.filter(
+                    (r) =>
+                      trendPatientId === "all" || r.user_id === trendPatientId
+                  )}
+                  vitals={vitals}
+                  selectedVitalCode={trendVital}
+                  range={trendRange}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                  Select a vital to view trends
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -621,15 +677,6 @@ const ProviderVitalMonitoring = () => {
                   Patient
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Vital Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Value
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Normal Range
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -644,26 +691,17 @@ const ProviderVitalMonitoring = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredVitalRecords.map((record, index) => (
-                <tr key={index} className="hover:bg-gray-50">
+              {filteredVitalRecords.map((record) => (
+                <tr
+                  key={`${record.user_id}-${record.vital_code}-${record.recorded_at}`}
+                  className="hover:bg-gray-50"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">
                         {record.patient_name}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {record.patient_email}
-                      </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.vital_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.value} {record.vital_unit}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.normal_range}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -681,7 +719,10 @@ const ProviderVitalMonitoring = () => {
                     {record.provider_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button className="text-teal-600 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1 rounded-md transition-colors">
+                    <button
+                      onClick={() => openPatientModal(record.user_id)}
+                      className="text-teal-600 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1 rounded-md transition-colors"
+                    >
                       View
                     </button>
                   </td>
@@ -706,6 +747,120 @@ const ProviderVitalMonitoring = () => {
           <AlertManagement vitalRecords={filteredVitalRecords} />
         </div>
       </div>
+
+      {/* Patient Details Modal */}
+      {showPatientModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h4 className="text-lg font-semibold text-teal-700">
+                Patient Details & Vitals
+              </h4>
+              <button
+                onClick={closePatientModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              {selectedPatientInfo ? (
+                <div className="mb-6">
+                  <div className="flex flex-wrap gap-6">
+                    <div>
+                      <div className="text-sm text-gray-500">Patient Name</div>
+                      <div className="font-semibold text-gray-900">
+                        {selectedPatientInfo.first_name}{" "}
+                        {selectedPatientInfo.last_name}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Email</div>
+                      <div className="font-medium text-gray-900">
+                        {selectedPatientInfo.email || "N/A"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">User ID</div>
+                      <div className="font-medium text-gray-900">
+                        {selectedPatientInfo.user_id}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <div>
+                <h5 className="text-md font-semibold text-teal-700 mb-3">
+                  Vital Sign Records
+                </h5>
+                {selectedPatientRecords.length ? (
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium text-gray-600">
+                            Vital
+                          </th>
+                          <th className="px-4 py-2 text-left font-medium text-gray-600">
+                            Value
+                          </th>
+                          <th className="px-4 py-2 text-left font-medium text-gray-600">
+                            Status
+                          </th>
+                          <th className="px-4 py-2 text-left font-medium text-gray-600">
+                            Recorded At
+                          </th>
+                          <th className="px-4 py-2 text-left font-medium text-gray-600">
+                            Provider
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {selectedPatientRecords.map((r) => (
+                          <tr
+                            key={`${r.vital_code}-${r.recorded_at}`}
+                            className="hover:bg-gray-50"
+                          >
+                            <td className="px-4 py-2">{r.vital_name}</td>
+                            <td className="px-4 py-2">
+                              {r.value} {r.vital_unit}
+                            </td>
+                            <td className="px-4 py-2">
+                              <span
+                                className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(
+                                  r.status
+                                )}`}
+                              >
+                                {r.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2">
+                              {formatDateTime(r.recorded_at)}
+                            </td>
+                            <td className="px-4 py-2">{r.provider_name}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    No vitals found for this patient.
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={closePatientModal}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

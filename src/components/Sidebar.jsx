@@ -32,7 +32,7 @@ const Sidebar = () => {
       label: "Appointment Management",
       icon: FiCalendar,
     },
-  // Removed Patient Profile link as requested
+    // Removed Patient Profile link as requested
     {
       to: "/provider-vital-monitoring",
       label: "Vital Monitoring",
