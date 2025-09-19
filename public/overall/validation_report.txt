@@ -9,7 +9,7 @@ Table: AddProviderTable
   Duplicate PK rows: 0
 
 Table: AppointmentTable
-  Rows: 1000
+  Rows: 3000
   Columns: 18
   Missing PK cells: 0
   Empty PK cells: 0

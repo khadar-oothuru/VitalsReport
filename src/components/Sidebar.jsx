@@ -17,6 +17,7 @@ const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigationItems = [
     { to: "/tables", label: "Tables", icon: FiDatabase },
+    { to: "/data-generation", label: "Data Generation", icon: FiFileText },
     {
       to: "/comprehensive-medical-profile",
       label: "Medical Profile",

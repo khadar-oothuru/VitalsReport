@@ -9,6 +9,7 @@ import ProviderAppointmentManagement from "./pages/ProviderAppointmentManagement
 import ProviderPatientProfile from "./pages/ProviderPatientProfile.jsx";
 import ProviderVitalMonitoring from "./pages/ProviderVitalMonitoring.jsx";
 import ProviderPatientDashboard from "./pages/ProviderPatientDashboard.jsx";
+import DataGeneration from "./pages/DataGeneration.jsx";
 import "./App.css";
 
 const App = () => {
@@ -79,6 +80,14 @@ const App = () => {
           element={
             <DashboardLayout>
               <ProviderPatientDashboard />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/data-generation"
+          element={
+            <DashboardLayout>
+              <DataGeneration />
             </DashboardLayout>
           }
         />

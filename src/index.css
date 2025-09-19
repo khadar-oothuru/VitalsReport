@@ -1,2 +1,15 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* Minimal markdown styling helpers */
+.prose code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.prose pre code {
+    background: transparent;
+}
+
+.prose table {
+    border-collapse: collapse;
+}
